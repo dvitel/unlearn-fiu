@@ -178,7 +178,7 @@ def main(cfg):
     tokenizer, qformer_tokenizer, processor = None, None, None
     if "llava" in cfg.model_id.lower():
         image_processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-large-patch14-336")
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model_id)
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model_id, trust_remote_code=True)
         model = LlavaForConditionalGeneration.from_pretrained(cfg.model_id, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
         if cfg.loss_type == "KL":
             oracle_model = LlavaForConditionalGeneration.from_pretrained(cfg.model_id, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
@@ -189,7 +189,7 @@ def main(cfg):
     elif "instructblip" in cfg.model_id.lower():
         model = InstructBlipForConditionalGeneration.from_pretrained(cfg.model_id, torch_dtype=torch.float16)
         image_processor = InstructBlipProcessor.from_pretrained(cfg.model_id)
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model_id)
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model_id, trust_remote_code=True)
         qformer_tokenizer = image_processor.qformer_tokenizer
         
         if cfg.loss_type == "KL":
@@ -200,7 +200,7 @@ def main(cfg):
 
     elif "llama-3.2" in cfg.model_id.lower():
         model = MllamaForConditionalGeneration.from_pretrained(cfg.model_id, torch_dtype=torch.bfloat16)
-        processor = AutoProcessor.from_pretrained(cfg.model_id)
+        processor = AutoProcessor.from_pretrained(cfg.model_id, trust_remote_code=True)
         image_processor = processor.image_processor
         tokenizer = processor.tokenizer
         if cfg.loss_type == "KL":

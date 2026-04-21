@@ -195,7 +195,7 @@ def main(cfg):
     oracle_model, processor = None, None
     if "llava" in cfg.model_path:
         image_processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-large-patch14-336")
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model_path)
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model_path, trust_remote_code=True)
         model = LlavaForConditionalGeneration.from_pretrained(cfg.model_path, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
         if  "kl" in cfg.forget_loss or cfg.forget_loss == "icd":
             oracle_model = LlavaForConditionalGeneration.from_pretrained(cfg.model_path, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
@@ -204,7 +204,7 @@ def main(cfg):
 
     elif "llama-3.2" in cfg.model_path.lower():
         model = MllamaForConditionalGeneration.from_pretrained(cfg.model_path, torch_dtype=torch.bfloat16)
-        processor = AutoProcessor.from_pretrained(cfg.model_path)
+        processor = AutoProcessor.from_pretrained(cfg.model_path, trust_remote_code=True)
         image_processor = processor.image_processor
         tokenizer = processor.tokenizer
         if  "kl" in cfg.forget_loss or cfg.forget_loss == "icd":

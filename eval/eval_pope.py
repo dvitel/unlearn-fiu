@@ -41,7 +41,7 @@ def parse_pred_ans(pred_ans):
 
 def load_model(args):
     if "llava" in args.model_name:
-        tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
         model = LlavaForConditionalGeneration.from_pretrained(args.model_path, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
         image_processor = CLIPImageProcessor.from_pretrained(args.vision_tower)
         

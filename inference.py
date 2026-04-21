@@ -37,7 +37,7 @@ def main(args):
   
     model_path, processor = args.model_path, None
     if "llava" in model_path:
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         model = LlavaForConditionalGeneration.from_pretrained(model_path, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
         image_processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-large-patch14-336")
         if args.checkpoint_path is not None:
@@ -45,7 +45,7 @@ def main(args):
     
     elif "llama-3.2" in model_path:
         model = MllamaForConditionalGeneration.from_pretrained(model_path, torch_dtype=torch.bfloat16)
-        processor = AutoProcessor.from_pretrained(model_path)
+        processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
         image_processor = processor.image_processor
         tokenizer = processor.tokenizer
         if args.checkpoint_path is not None:

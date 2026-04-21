@@ -580,7 +580,7 @@ def get_all_evals(cfg, model, tokenizer, image_processor, eval_task, split, eval
 def main(cfg):
     model_cfg = get_model_identifiers_from_yaml(cfg.model_family)
     model_id = model_cfg["hf_key"]
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 
     tokenizer.pad_token = tokenizer.eos_token
     max_length = 500
@@ -589,13 +589,13 @@ def main(cfg):
     model, processor = None, None
     if "llava" in cfg.model_path:
         image_processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-large-patch14-336")
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model_path)
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model_path, trust_remote_code=True)
         model = LlavaForConditionalGeneration.from_pretrained(cfg.model_path, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
         if cfg.LoRA.r != 0:
             target_modules=r'.*language_model.*\.(up_proj|k_proj|linear_2|down_proj|v_proj|q_proj|o_proj|gate_proj|linear_1)'
     elif "llama-3.2" in cfg.model_path.lower():
         model = MllamaForConditionalGeneration.from_pretrained(cfg.model_path, torch_dtype=torch.bfloat16)
-        processor = AutoProcessor.from_pretrained(cfg.model_path)
+        processor = AutoProcessor.from_pretrained(cfg.model_path, trust_remote_code=True)
         image_processor = processor.image_processor
         tokenizer = processor.tokenizer
         if cfg.LoRA.r != 0:
