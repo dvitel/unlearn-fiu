@@ -1,6 +1,6 @@
 transformers
 datasets
-accelerat
+accelerate
 deepspeed
 evaluate
 matplotlib
