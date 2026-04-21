@@ -2,7 +2,7 @@ model_id: meta-llama/Llama-3.2-11B-Vision
 model_family: llama-3.2-vision
 
 LoRA:
-  r: 0
+  r: 64
   alpha: 128
   dropout: 0.05
 
