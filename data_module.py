@@ -12,7 +12,7 @@ import datasets
 from PIL import Image
 import transformers
 import glob
-from utils import get_model_identifiers_from_yaml
+from utils import get_model_identifiers_from_yaml, llama_apply_chat_template
 
 data_split = json.load(open("./dataset/split.json", "r"))
 
@@ -176,8 +176,9 @@ class MMDatasetQA(Dataset):
                         {"type": "text", "text": ans}
                     ]},
                 ]
+
                 roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
-                input_text = self.tokenizer.apply_chat_template(sources)
+                input_text = llama_apply_chat_template(self.processor, self.tokenizer, sources)
                 inputs = self.processor(Image.open(image_path), input_text, return_tensors="pt")
                 image_tensor = inputs['pixel_values']
                 labels = preprocess_v1(self.tokenizer, inputs['input_ids'], input_text, roles)
@@ -372,7 +373,7 @@ class MMForgetDatasetQA(Dataset):
                     ]},
                 ]
                 roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
-                input_text = self.tokenizer.apply_chat_template(sources)
+                input_text = llama_apply_chat_template(self.processor, self.tokenizer, sources)
                 inputs = self.processor(Image.open(image_path), input_text, return_tensors="pt")
                 image_tensor = inputs['pixel_values']
                 labels = preprocess_v1(self.tokenizer, inputs['input_ids'], input_text, roles)

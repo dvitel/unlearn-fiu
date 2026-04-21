@@ -3,6 +3,30 @@ import copy
 import numpy as np
 import torch
 
+def llama_apply_chat_template(processor, tokenizer, sources, add_generation_prompt: bool = False):
+    if tokenizer.chat_template is not None:
+        # if the tokenizer already has a chat template, we can just use it
+        return processor.apply_chat_template(sources, add_generation_prompt=add_generation_prompt)
+    
+    llama_3_2_template = (
+        "{% for message in messages %}"
+        "<|start_header_id|>{{ message['role'] }}<|end_header_id|>\n\n"
+        "{% if message['content'] is string %}{{ message['content'] }}"
+        "{% else %}{% for item in message['content'] %}"
+        "{% if item['type'] == 'image' %}<|image|>"
+        "{% elif item['type'] == 'text' %}{{ item['text'] }}"
+        "{% endif %}{% endfor %}{% endif %}"
+        "<|eot_id|>"
+        "{% endfor %}"
+    )
+
+    # Manually assign it to both to ensure whichever one you call works
+    tokenizer.chat_template = llama_3_2_template
+    processor.chat_template = llama_3_2_template
+    res = processor.apply_chat_template(sources, add_generation_prompt=add_generation_prompt)
+    return res
+
+
 def get_model_identifiers_from_yaml(model_family):
     #path is model_configs.yaml
     '''

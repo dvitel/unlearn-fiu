@@ -14,6 +14,8 @@ from transformers import (
 )
 from peft import LoraConfig, get_peft_model
 from PIL import ImageFile
+
+from utils import llama_apply_chat_template
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def load_model(args):
@@ -86,7 +88,7 @@ def get_text_inputs(model_name, tokenizer, question, image_tensor, image, proces
                 {"type": "text", "text":f"For the following questions, please answer yes or no directly and do not include any other information:\n\n{question}"}
             ]}
         ]
-        input_text = processor.apply_chat_template(messages, add_generation_prompt=True)
+        input_text = llama_apply_chat_template(processor, tokenizer, messages, add_generation_prompt=True) 
         inputs = processor(
             image,
             input_text,

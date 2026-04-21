@@ -24,6 +24,7 @@ from transformers import (
     InstructBlipForConditionalGeneration
 )
 from peft import LoraConfig, get_peft_model
+from utils import llama_apply_chat_template
 
 random.seed(233)
 
@@ -125,7 +126,7 @@ def main(args):
                         {"type": "text", "text":question}
                     ]}
                 ]
-                input_text = processor.apply_chat_template(messages, add_generation_prompt=True)
+                input_text = llama_apply_chat_template(processor, tokenizer, messages, add_generation_prompt=True) 
                 inputs = processor(
                     image,
                     input_text,
