@@ -12,7 +12,7 @@ tune_mm_projector: True
 tune_language_model: True
 data_path: ./dataset/full.json
 split: retain
-batch_size: 3
+batch_size: 1
 gradient_accumulation_steps: 4
 max_grad_norm: 1.0
 num_epochs: 2
