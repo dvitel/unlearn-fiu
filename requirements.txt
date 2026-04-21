@@ -1,7 +1,7 @@
-transformers==4.37.2
+transformers
 datasets
-accelerate==0.27.0
-deepspeed==0.14.2
+accelerat
+deepspeed
 evaluate
 matplotlib
 hydra-core
@@ -15,7 +15,7 @@ packaging
 bitsandbytes
 scipy
 ninja
-sentencepiece==0.1.99
+sentencepiece
 protobuf
 wandb
 google-generativeai
@@ -24,8 +24,8 @@ aiohttp_jinja2
 huggingface_hub
 scikit-learn
 numpy
-torch==2.1.2
-torchvision==0.16.2 
+torch
+torchvision
 #torchaudio==2.2.2 
 qwen-vl-utils[decord]==0.0.8
 #flash-attn==2.5.8
