@@ -384,6 +384,7 @@ def main(cfg):
     if cfg.loss_type == "KL":
         oracle_model = e_prepare_deepspeed(oracle_model, accelerator)
     
+    model.gradient_checkpointing_enable()
     for epoch in range(starting_epoch, cfg.num_epochs):
         model.train()
         total_loss = 0
