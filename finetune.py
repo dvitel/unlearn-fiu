@@ -185,6 +185,13 @@ def main(cfg):
             torch_dtype=torch.float16
         )
         processor = AutoProcessor.from_pretrained(cfg.model_id)
+
+        if not hasattr(processor, "patch_size") or processor.patch_size is None:
+            # Check the vision config in the model itself
+            if hasattr(model.config, "vision_config"):
+                processor.patch_size = model.config.vision_config.patch_size
+            else:
+                processor.patch_size = 14 # Standard fallback for CLIP-ViT-L-14        
         # Extract sub-components for your Dataset class if it requires them
         image_processor = processor.image_processor
         tokenizer = processor.tokenizer
