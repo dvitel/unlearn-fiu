@@ -427,7 +427,7 @@ def main(cfg):
                 total_loss += loss.detach().float()
                 losses.append(loss.detach().float())
 
-                print_memory_usage(f"[Before backward {cfg.loss_type}]")
+                print_memory_usage(f"[Before backward]")
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
                     accelerator.clip_grad_norm_(
