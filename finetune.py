@@ -54,6 +54,7 @@ from utils import (
     get_model_identifiers_from_yaml, 
     get_cast_dtype, 
     parse_pred_ans,
+    print_memory_usage,
     save_lora_weights
 )
 
@@ -426,14 +427,19 @@ def main(cfg):
                 total_loss += loss.detach().float()
                 losses.append(loss.detach().float())
 
+                print_memory_usage(f"[Before backward {cfg.loss_type}]")
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
                     accelerator.clip_grad_norm_(
                         model.parameters(), cfg.max_grad_norm)
+                    
+                print_memory_usage("[After backward]")
 
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
+
+            print_memory_usage("[After optimizer step]")
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if accelerator.sync_gradients:

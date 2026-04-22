@@ -3,6 +3,15 @@ import copy
 import numpy as np
 import torch
 
+import psutil
+import os
+
+def print_memory_usage(prefix: str = ""):
+    process = psutil.Process(os.getpid())
+    # Convert bytes to Megabytes
+    mem_gb = process.memory_info().rss / (1024 * 1024 * 1024)
+    print(f"{prefix} Current Memory Usage: {mem_gb:.2f} GB")
+
 def llama_apply_chat_template(processor, tokenizer, sources, add_generation_prompt: bool = False):
     if tokenizer.chat_template is not None:
         # if the tokenizer already has a chat template, we can just use it
