@@ -39,7 +39,7 @@ def main(args):
     model_path, processor = args.model_path, None
     if "llava" in model_path:
         tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        model = LlavaForConditionalGeneration.from_pretrained(model_path, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
+        model = LlavaForConditionalGeneration.from_pretrained(model_path, attn_implementation="sdpa", torch_dtype=torch.float16)
         image_processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-large-patch14-336")
         if args.checkpoint_path is not None:
             target_modules=r'.*language_model.*\.(up_proj|k_proj|linear_2|down_proj|v_proj|q_proj|o_proj|gate_proj|linear_1)'
