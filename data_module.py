@@ -154,10 +154,10 @@ class MMDatasetQA(Dataset):
                 )
 
                 # text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
-                label = preprocess_v1(self.tokenizer, text_input['input_ids'], conversation, roles)
+                label = preprocess_v1(self.tokenizer, inputs['input_ids'], conversation, roles)
 
-                pad_input_ids_list.append(text_input['input_ids'][0])
-                pad_attention_mask_list.append(text_input['attention_mask'][0])
+                pad_input_ids_list.append(inputs['input_ids'][0])
+                pad_attention_mask_list.append(inputs['attention_mask'][0])
                 label_list.append(label[0])
                 # pixel_value_list.append(image_tensor)
                 pixel_value_list.append(inputs['pixel_values'][0])
