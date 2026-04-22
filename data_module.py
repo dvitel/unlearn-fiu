@@ -132,20 +132,37 @@ class MMDatasetQA(Dataset):
         aspect_ratio_ids_list = []
         aspect_ratio_mask_list = []
         cross_attention_mask_list = []
+        image_sizes_list = None
 
         
         if "llava" in self.config.model_family:
-            image_tensor = self.image_processor.preprocess(Image.open(image_path), return_tensors='pt')['pixel_values']
+            raw_image = Image.open(image_path)
+            image_sizes_list = []
+            # image_tensor = self.image_processor.preprocess(, return_tensors='pt')['pixel_values']
             for ans in answers:
                 system_message = self.model_configs['system_tag']
                 roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
                 conversation = system_message + roles[0] + "<image>\n" + question + roles[1] + ans
-                text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
+
+                inputs = self.processor(
+                    text=conversation, 
+                    images=raw_image, 
+                    padding="max_length", 
+                    max_length=self.max_length, 
+                    truncation=True, 
+                    return_tensors="pt"
+                )
+
+                # text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
                 label = preprocess_v1(self.tokenizer, text_input['input_ids'], conversation, roles)
+
                 pad_input_ids_list.append(text_input['input_ids'][0])
                 pad_attention_mask_list.append(text_input['attention_mask'][0])
                 label_list.append(label[0])
-                pixel_value_list.append(image_tensor)
+                # pixel_value_list.append(image_tensor)
+                pixel_value_list.append(inputs['pixel_values'][0])
+                if 'image_sizes' in inputs:
+                    image_sizes_list.append(inputs['image_sizes'][0])                
 
         elif "instructblip" in self.config.model_family:
             pad_qformer_input_ids_list = []
@@ -258,13 +275,16 @@ class MMDatasetQA(Dataset):
             }
          
         else:
-            return {
+            ret = {
                 "input_ids": input_ids.squeeze(0), 
                 "attention_mask": attention_mask.squeeze(0), 
                 "labels": labels.squeeze(0), 
                 "pixel_values": pixel_values.squeeze(0),
                 "category": [category for _ in range(input_ids.shape[0])],
             }
+            if image_sizes_list:
+                ret["image_sizes"] = torch.stack(image_sizes_list).squeeze(0)            
+            return ret
     
 
 class MMForgetDatasetQA(Dataset):
