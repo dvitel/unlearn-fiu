@@ -41,6 +41,7 @@ from transformers import (
     AutoConfig, 
     set_seed, 
     LlavaForConditionalGeneration, 
+    LlavaNextForConditionalGeneration,
     AutoProcessor,
     CLIPImageProcessor
 )
@@ -178,12 +179,18 @@ def main(cfg):
             
     tokenizer, qformer_tokenizer, processor = None, None, None
     if "llava" in cfg.model_id.lower():
-        image_processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-large-patch14-336")
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model_id, trust_remote_code=True)
-        model = LlavaForConditionalGeneration.from_pretrained(cfg.model_id, attn_implementation="sdpa", torch_dtype=torch.float16)
+        model = LlavaNextForConditionalGeneration.from_pretrained(
+            cfg.model_id, 
+            attn_implementation="sdpa", 
+            torch_dtype=torch.float16
+        )
+        processor = AutoProcessor.from_pretrained(cfg.model_id)
+        # Extract sub-components for your Dataset class if it requires them
+        image_processor = processor.image_processor
+        tokenizer = processor.tokenizer
+        
         if cfg.loss_type == "KL":
-            oracle_model = LlavaForConditionalGeneration.from_pretrained(cfg.model_id, attn_implementation="sdpa", torch_dtype=torch.float16)
-
+            oracle_model = LlavaNextForConditionalGeneration.from_pretrained(cfg.model_id, attn_implementation="sdpa", torch_dtype=torch.float16)
         if cfg.LoRA.r != 0:
             target_modules=r'.*language_model.*\.(up_proj|k_proj|linear_2|down_proj|v_proj|q_proj|o_proj|gate_proj|linear_1)'
         
