@@ -69,7 +69,7 @@ def load_model(args):
     return model, tokenizer, image_processor, processor
     
 def get_text_inputs(model_name, tokenizer, question, image_tensor, image, processor):
-    if "llava_phi" in model_name:
+    if "llava_phi" in model_name or "llava-phi" in model_name:
         prompt = f"<|user|>\n<image>\n{question}<|end|>\n<|assistant|>\n"
         text_input = tokenizer(prompt, return_tensors='pt')
         inputs = {**text_input, "pixel_values": image_tensor}
@@ -114,7 +114,7 @@ def mme_forward(model_name, img_path, img_name, text_path, model, tokenizer, ima
             inputs = get_text_inputs(model_name, tokenizer, question, image_tensor, image, processor)
             inputs = {k: v.to(model.device) for k, v in inputs.items()}
             output = model.generate(**inputs, max_new_tokens=3)
-            if "llava_phi" in model_name:
+            if "llava_phi" in model_name or "llava-phi" in model_name:
                 prediction = tokenizer.decode(output[0])
                 prediction = prediction[prediction.find("<|assistant|>") + len("<|assistant|>"): ].strip(" ")
                 if "yes" in prediction.lower():

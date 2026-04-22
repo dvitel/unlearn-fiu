@@ -77,7 +77,7 @@ def load_model(args):
     return model, tokenizer, image_processor
     
 def get_text_inputs(model_name, tokenizer, question, image_tensor):
-    if "llava_phi" in model_name:
+    if "llava_phi" in model_name or "llava-phi" in model_name:
         prompt = f"<|user|>\n<image>\n{question}<|end|>\n<|assistant|>\n"
         text_input = tokenizer(prompt, return_tensors='pt')
         inputs = {**text_input, "pixel_values": image_tensor}
@@ -98,7 +98,7 @@ def pope_forward(model_name, image, question, answer, model, tokenizer, image_pr
     inputs = get_text_inputs(model_name, tokenizer, question, image_tensor)
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
     output = model.generate(**inputs, max_new_tokens=5)
-    if "llava_phi" in model_name:
+    if "llava_phi" in model_name or "llava-phi" in model_name:
         prediction = tokenizer.decode(output[0])
         prediction = prediction[prediction.find("<|assistant|>") + len("<|assistant|>"): ].strip(" ")
     elif "llava" in model_name:
