@@ -92,7 +92,7 @@ def print_trainable_parameters(model):
         if param.requires_grad:
             trainable_params += param.numel()
     print(
-        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
+        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / (all_param if all_param > 0 else 1)}"
     )
 
 def e_prepare_deepspeed(model, accelerator):
@@ -284,7 +284,11 @@ def main(cfg):
             }
         ]
     
-    optimizer = torch.optim.AdamW(get_grouped_params(model), lr=cfg.lr)
+    # optimizer = torch.optim.AdamW(get_grouped_params(model), lr=cfg.lr)
+
+    import bitsandbytes as bnb
+    optimizer = bnb.optim.PagedAdamW8bit(get_grouped_params(model), lr=cfg.lr)
+
     # from opacus.optimizers.optimizer import DPOptimizer
     # from opacus.scripts import compute_dp_sgd_privacy
     # optimizer = torch.optim.SGD(get_grouped_params(model), lr=cfg.lr)

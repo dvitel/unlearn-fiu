@@ -110,7 +110,10 @@ def get_grouped_params(model):
         ]
           
 def get_optimizer(config, model):
-    return torch.optim.AdamW(get_grouped_params(model), lr=config.lr)
+    # return torch.optim.AdamW(get_grouped_params(model), lr=config.lr)
+    import bitsandbytes as bnb
+    optimizer = bnb.optim.PagedAdamW8bit(get_grouped_params(model), lr=config.lr)    
+    return optimizer
     
 
 def e_prepare_deepspeed(model, accelerator):
