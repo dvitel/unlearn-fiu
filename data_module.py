@@ -560,17 +560,33 @@ class custom_data_collator(object):
             # We want batch['image_sizes'] to be [Batch, 2]
             batch['image_sizes'] = torch.stack([instance['image_sizes'] for instance in instances])        
         for key in ['pixel_values', 'aspect_ratio_ids', 'aspect_ratio_mask']:
-            if key in instances[0]:
-                values = [instance[key].squeeze(1) for instance in instances]
-                if all(x is not None and x.shape == values[0].shape for x in values):
-                    batch[key] = torch.stack(values)
-                else:
-                    batch[key] = values
+            # if key in instances[0]:
+            #     values = [instance[key].squeeze(1) for instance in instances]
+            #     if all(x is not None and x.shape == values[0].shape for x in values):
+            #         batch[key] = torch.stack(values)
+            #     else:
+            #         batch[key] = values
                 
-                if key == 'pixel_values' and len(values[0].shape) > 4:
-                    batch[key] = batch[key].squeeze(1).unsqueeze(0)
+            #     if key == 'pixel_values' and len(values[0].shape) > 4:
+            #         batch[key] = batch[key].squeeze(1).unsqueeze(0)
+            #     else:
+            #         batch[key] = batch[key].squeeze(1)
+            if key in instances[0]:
+                # 1. Just collect the tensors as they are
+                values = [instance[key] for instance in instances]
+                
+                # 2. Stack them into a batch
+                if all(x is not None and x.shape == values[0].shape for x in values):
+                    batch[key] = torch.stack(values) 
                 else:
-                    batch[key] = batch[key].squeeze(1)
+                    batch[key] = values  
+
+                # 3. Simple 5D enforcement for pixel_values
+                if key == 'pixel_values':
+                    # If it somehow ended up 4D [B, C, H, W], add the patch dim back
+                    if batch[key].dim() == 4:
+                        batch[key] = batch[key].unsqueeze(1)
+                    # If it's already 5D [B, 1, 3, 336, 336], do nothing!                              
 
         if "cross_attention_mask" in instances[0]:
             cross_attention_mask_list = [instance["cross_attention_mask"][0] for instance in instances]
