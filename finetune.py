@@ -418,6 +418,15 @@ def main(cfg):
                 
             category = batch.pop("category") 
             with accelerator.accumulate(model):
+
+                for k in batch:
+                    v = batch[k]
+                    if torch.is_tensor(v):
+                        v_shape = v.shape
+                        print(f"DEBUG MODEL | batch[{k}]: tensor of {v_shape}\n") 
+                    else:
+                        print(f"DEBUG MODEL | batch[{k}: value of {type(v)}\n")                 
+                        
                 outputs = model(**batch)
                 loss = outputs.loss
                         
