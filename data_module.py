@@ -535,6 +535,11 @@ class custom_data_collator(object):
             labels=labels,
             attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
         )
+        # --- NEW: Handle image_sizes for LLaVA-v1.6 ---
+        if 'image_sizes' in instances[0]:
+            # Each instance['image_sizes'] is a tensor [2]
+            # We want batch['image_sizes'] to be [Batch, 2]
+            batch['image_sizes'] = torch.stack([instance['image_sizes'] for instance in instances])        
         for key in ['pixel_values', 'aspect_ratio_ids', 'aspect_ratio_mask']:
             if key in instances[0]:
                 values = [instance[key].squeeze(1) for instance in instances]
