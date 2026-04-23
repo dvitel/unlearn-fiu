@@ -104,10 +104,14 @@ class MMDatasetQA(Dataset):
                 if isinstance(question, str):
                     question = [question]
                 for i, q in enumerate(question):
-                    robust_qa = qa.copy()
-                    robust_qa['paraphrased_question'] = q
-                    self.samples.append(robust_qa)
-        
+                    answers = qa[self.answer_key]
+                    if isinstance(answers, str):
+                        answers = [answers.capitalize()]
+                    for j, ans in enumerate(answers):
+                        robust_qa = qa.copy()
+                        robust_qa['paraphrased_question'] = q
+                        robust_qa[self.answer_key] = ans.capitalize()                                                              
+                    self.samples.append(robust_qa)        
 
         print(
             f"There are {len(self.samples)} QA pairs for fine-tuning or evaluation!"
@@ -118,12 +122,13 @@ class MMDatasetQA(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        image_path = self.samples[idx]['image_path']
-        question = self.samples[idx][self.question_key].capitalize()
-        answers = self.samples[idx][self.answer_key]
-        category = self.samples[idx]['label']
-        if isinstance(answers, str):
-            answers = [answers.capitalize()]
+
+        print(f"Processing sample {idx+1}/{len(self.samples)}", end="\r")
+        sample = self.samples[idx]
+        image_path = sample['image_path']
+        question = sample[self.question_key].capitalize()
+        ans = sample[self.answer_key]
+        category = sample['label']
 
         pad_input_ids_list = []
         label_list = []
@@ -132,81 +137,137 @@ class MMDatasetQA(Dataset):
         aspect_ratio_ids_list = []
         aspect_ratio_mask_list = []
         cross_attention_mask_list = []
-        image_sizes_list = None
 
         
         if "llava" in self.config.model_family:
             raw_image = Image.open(image_path)
             image_sizes_list = []
             # image_tensor = self.image_processor.preprocess(, return_tensors='pt')['pixel_values']
-            for ans in answers:
-                system_message = self.model_configs['system_tag']
-                roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
-                conversation = system_message + roles[0] + "<image>\n" + question + roles[1] + ans
+            system_message = self.model_configs['system_tag']
+            roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
+            conversation = system_message + roles[0] + "<image>\n" + question + roles[1] + ans
 
-                inputs = self.processor(
-                    text=conversation, 
-                    images=raw_image, 
-                    padding="max_length", 
-                    max_length=self.max_length, 
-                    truncation=True, 
-                    return_tensors="pt"
-                )
+            inputs = self.processor(
+                text=conversation, 
+                images=raw_image, 
+                padding="max_length", 
+                max_length=self.max_length, 
+                truncation=True, 
+                return_tensors="pt"
+            )
 
-                # text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
-                label = preprocess_v1(self.tokenizer, inputs['input_ids'], conversation, roles)
+            # text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
+            label = preprocess_v1(self.tokenizer, inputs['input_ids'], conversation, roles)
 
-                pad_input_ids_list.append(inputs['input_ids'][0])
-                pad_attention_mask_list.append(inputs['attention_mask'][0])
-                label_list.append(label[0])
-                # pixel_value_list.append(image_tensor)
-                pixel_value_list.append(inputs['pixel_values'][0])
-                if 'image_sizes' in inputs:
-                    image_sizes_list.append(inputs['image_sizes'][0])                
+
+            pad_input_ids_list.append(inputs['input_ids'][0])
+            pad_attention_mask_list.append(inputs['attention_mask'][0])
+            label_list.append(label[0])
+            # pixel_value_list.append(image_tensor)
+            pixel_value_list.append(inputs['pixel_values'][0])
+            if 'image_sizes' in inputs:
+                image_sizes_list.append(inputs['image_sizes'][0])   
+
+            input_ids = torch.nn.utils.rnn.pad_sequence(
+                pad_input_ids_list,
+                batch_first=True,
+                padding_value=self.tokenizer.pad_token_id) 
+            
+            print(f"Image sized {image_sizes_list}")
+        
+            attention_mask = torch.nn.utils.rnn.pad_sequence(
+                    pad_attention_mask_list,
+                    batch_first=True,
+                    padding_value=self.tokenizer.pad_token_id)  
+
+            labels = torch.nn.utils.rnn.pad_sequence(
+                    label_list,
+                    batch_first=True,
+                    padding_value=-100)   
+            
+            pixel_values = torch.stack(pixel_value_list) 
+
+            ret = {
+                "input_ids": input_ids.squeeze(0), 
+                "attention_mask": attention_mask.squeeze(0), 
+                "labels": labels.squeeze(0), 
+                "pixel_values": pixel_values.squeeze(0),
+                "category": [category for _ in range(input_ids.shape[0])],
+            }
+            if image_sizes_list:
+                ret["image_sizes"] = image_sizes_list        
+            return ret
+                                            
 
         elif "instructblip" in self.config.model_family:
             pad_qformer_input_ids_list = []
             pad_qformer_attention_mask_list = []
-            for ans in answers:
-                inputs = self.image_processor(images=Image.open(image_path), text=question, return_tensors="pt")
-                system_message = self.model_configs['system_tag']
-                roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
-                conversation = system_message + roles[0] + question + roles[1] + ans
-                text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
-                label = preprocess_v1(self.tokenizer, text_input['input_ids'], conversation, roles)
-        
-                pad_input_ids_list.append(text_input['input_ids'][0])
-                pad_attention_mask_list.append(text_input['attention_mask'][0])
-                pad_qformer_input_ids_list.append(inputs['qformer_input_ids'][0])
-                pad_qformer_attention_mask_list.append(inputs['qformer_attention_mask'][0])
-                label_list.append(label[0])
-                pixel_value_list.append(inputs['pixel_values'])
+            # for ans in answers:
+            inputs = self.image_processor(images=Image.open(image_path), text=question, return_tensors="pt")
+            system_message = self.model_configs['system_tag']
+            roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
+            conversation = system_message + roles[0] + question + roles[1] + ans
+            text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
+            label = preprocess_v1(self.tokenizer, text_input['input_ids'], conversation, roles)
+    
+            pad_input_ids_list.append(text_input['input_ids'][0])
+            pad_attention_mask_list.append(text_input['attention_mask'][0])
+            pad_qformer_input_ids_list.append(inputs['qformer_input_ids'][0])
+            pad_qformer_attention_mask_list.append(inputs['qformer_attention_mask'][0])
+            label_list.append(label[0])
+            pixel_value_list.append(inputs['pixel_values'])
+
+            attention_mask = torch.nn.utils.rnn.pad_sequence(
+                    pad_attention_mask_list,
+                    batch_first=True,
+                    padding_value=self.tokenizer.pad_token_id)  
+
+            labels = torch.nn.utils.rnn.pad_sequence(
+                    label_list,
+                    batch_first=True,
+                    padding_value=-100)   
+            
+            pixel_values = torch.stack(pixel_value_list)    
+
+            qformer_input_ids = pad_qformer_input_ids(pad_qformer_input_ids_list, self.tokenizer.pad_token_id)
+            qformer_attention_mask = qformer_input_ids.ne(self.tokenizer.pad_token_id)
+            
+            return {
+                "input_ids": input_ids.squeeze(0), 
+                "attention_mask": attention_mask.squeeze(0), 
+                "labels": labels.squeeze(0), 
+                "qformer_input_ids": qformer_input_ids.squeeze(0),
+                "qformer_attention_mask": qformer_attention_mask.squeeze(0),
+                "pixel_values": pixel_values.squeeze(0),
+                "category": [category for _ in range(input_ids.shape[0])],
+            }                                     
+
 
         elif "llama-3.2" in self.config.model_family.lower():
-            for ans in answers:
-                sources = [
-                    {"role": "user", "content": [
-                        {"type": "image"},
-                        {"type": "text", "text": question}
-                    ]},
-                    {"role": "assistant", "content": [
-                        {"type": "text", "text": ans}
-                    ]},
-                ]
+            # for ans in answers:
+            sources = [
+                {"role": "user", "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": question}
+                ]},
+                {"role": "assistant", "content": [
+                    {"type": "text", "text": ans}
+                ]},
+            ]
 
-                roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
-                input_text = llama_apply_chat_template(self.processor, self.tokenizer, sources)
-                inputs = self.processor(Image.open(image_path), input_text, return_tensors="pt")
-                image_tensor = inputs['pixel_values']
-                labels = preprocess_v1(self.tokenizer, inputs['input_ids'], input_text, roles)
+            roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
+            input_text = llama_apply_chat_template(self.processor, self.tokenizer, sources)
+            inputs = self.processor(Image.open(image_path), input_text, return_tensors="pt")
+            image_tensor = inputs['pixel_values']
+            labels = preprocess_v1(self.tokenizer, inputs['input_ids'], input_text, roles)
 
-                pad_input_ids_list.append(inputs['input_ids'][0])
-                pad_attention_mask_list.append(inputs["attention_mask"][0])
-                label_list.append(labels[0])
-                pixel_value_list.append(inputs['pixel_values'])
-                aspect_ratio_ids_list.append(inputs['aspect_ratio_ids'])
-                aspect_ratio_mask_list.append(inputs['aspect_ratio_mask'])
-                cross_attention_mask_list.append(inputs['cross_attention_mask'][0])
+            pad_input_ids_list.append(inputs['input_ids'][0])
+            pad_attention_mask_list.append(inputs["attention_mask"][0])
+            label_list.append(labels[0])
+            pixel_value_list.append(inputs['pixel_values'])
+            aspect_ratio_ids_list.append(inputs['aspect_ratio_ids'])
+            aspect_ratio_mask_list.append(inputs['aspect_ratio_mask'])
+            cross_attention_mask_list.append(inputs['cross_attention_mask'][0])
    
             input_ids = pad_sequence(
                 pad_input_ids_list, padding_side='right', padding_value=self.tokenizer.pad_token_id
@@ -240,52 +301,8 @@ class MMDatasetQA(Dataset):
             )
 
             return ret
-
-
-        input_ids = torch.nn.utils.rnn.pad_sequence(
-            pad_input_ids_list,
-            batch_first=True,
-            padding_value=self.tokenizer.pad_token_id) 
-    
-        attention_mask = torch.nn.utils.rnn.pad_sequence(
-                pad_attention_mask_list,
-                batch_first=True,
-                padding_value=self.tokenizer.pad_token_id)  
-
-        labels = torch.nn.utils.rnn.pad_sequence(
-                label_list,
-                batch_first=True,
-                padding_value=-100)   
         
-        pixel_values = torch.stack(pixel_value_list)
-
-        
-        if "instructblip" in self.config.model_family:
-            qformer_input_ids = pad_qformer_input_ids(pad_qformer_input_ids_list, self.tokenizer.pad_token_id)
-            qformer_attention_mask = qformer_input_ids.ne(self.tokenizer.pad_token_id)
-            
-            return {
-                "input_ids": input_ids.squeeze(0), 
-                "attention_mask": attention_mask.squeeze(0), 
-                "labels": labels.squeeze(0), 
-                "qformer_input_ids": qformer_input_ids.squeeze(0),
-                "qformer_attention_mask": qformer_attention_mask.squeeze(0),
-                "pixel_values": pixel_values.squeeze(0),
-                "category": [category for _ in range(input_ids.shape[0])],
-            }
-         
-        else:
-            ret = {
-                "input_ids": input_ids.squeeze(0), 
-                "attention_mask": attention_mask.squeeze(0), 
-                "labels": labels.squeeze(0), 
-                "pixel_values": pixel_values.squeeze(0),
-                "category": [category for _ in range(input_ids.shape[0])],
-            }
-            if image_sizes_list:
-                ret["image_sizes"] = torch.stack(image_sizes_list).squeeze(0)            
-            return ret
-    
+        return None
 
 class MMForgetDatasetQA(Dataset):
     def __init__(self, config, tokenizer, image_processor, max_length=512, split=None, processor=None):
