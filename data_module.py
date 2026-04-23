@@ -175,7 +175,7 @@ class MMDatasetQA(Dataset):
                 batch_first=True,
                 padding_value=self.tokenizer.pad_token_id) 
             
-            print(f"Image size {image_sizes}, {raw_image.size[1]}, {raw_image.size[0]} \n")
+            # print(f"Image size {image_sizes}, {raw_image.size[1]}, {raw_image.size[0]} \n")
         
             attention_mask = torch.nn.utils.rnn.pad_sequence(
                     pad_attention_mask_list,
@@ -197,6 +197,10 @@ class MMDatasetQA(Dataset):
                 "image_sizes": image_sizes,
                 "category": [category for _ in range(input_ids.shape[0])],
             }
+
+            print(f"DEBUG GETITEM | pixel_values: {ret['pixel_values'].shape}\n") 
+            print(f"DEBUG GETITEM | input_ids: {ret['input_ids'].shape}\n") 
+            print(f"DEBUG GETITEM | image_sizes: {ret['image_sizes'].shape}\n")            
             return ret
                                             
 
@@ -509,6 +513,15 @@ class custom_data_collator_perturbed(object):
                 batch['qformer_attention_mask'] = torch.stack(qformer_attention_mask)
             else:
                 batch['qformer_attention_mask'] = qformer_attention_mask
+
+        # Debug prints inside Collator
+        print(f"DEBUG COLLATOR | Num Instances: {len(instances)}")
+        print(f"DEBUG COLLATOR | First instance pixel_values: {instances[0]['pixel_values'].shape}")
+
+        # ... after the stacking logic ...
+
+        print(f"DEBUG COLLATOR | Final Batch pixel_values: {batch['pixel_values'].shape}")
+        print(f"DEBUG COLLATOR | Final Batch image_sizes: {batch['image_sizes'].shape}")                
                 
         return batch
 
