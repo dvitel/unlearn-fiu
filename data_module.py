@@ -168,12 +168,13 @@ class MMDatasetQA(Dataset):
             pad_attention_mask_list.append(inputs['attention_mask'][0])
             label_list.append(label[0])
             # pixel_value_list.append(image_tensor)
-            pixel_value_list.append(inputs['pixel_values'][0])
+            # pixel_value_list.append(inputs['pixel_values'][0])
             # Manually ensure image_sizes exists
-            if 'image_sizes' in inputs:
-                image_sizes = inputs['image_sizes'][0]
-            else:
-                image_sizes = torch.tensor([raw_image.size[1], raw_image.size[0]], dtype=torch.long)                 
+            # if 'image_sizes' in inputs:
+            #     image_sizes = inputs['image_sizes'][0]
+            # else:
+            #     image_sizes = torch.tensor([raw_image.size[1], raw_image.size[0]], dtype=torch.long)   
+            image_sizes = torch.tensor([336, 336], dtype=torch.long)   # 1 patch - global one           
 
             input_ids = torch.nn.utils.rnn.pad_sequence(
                 pad_input_ids_list,
@@ -192,13 +193,13 @@ class MMDatasetQA(Dataset):
                     batch_first=True,
                     padding_value=-100)   
             
-            pixel_values = torch.stack(pixel_value_list) 
+            # pixel_values = torch.stack(pixel_value_list) 
 
             ret = {
                 "input_ids": input_ids.squeeze(0), 
                 "attention_mask": attention_mask.squeeze(0), 
                 "labels": labels.squeeze(0), 
-                "pixel_values": pixel_values.squeeze(0),
+                "pixel_values": inputs['pixel_values'],
                 "image_sizes": image_sizes,
                 "category": [category for _ in range(input_ids.shape[0])],
             }
