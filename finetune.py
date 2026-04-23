@@ -425,8 +425,8 @@ def main(cfg):
                         v_shape = v.shape
                         print(f"DEBUG MODEL | batch[{k}]: tensor of {v_shape}\n") 
                     else:
-                        print(f"DEBUG MODEL | batch[{k}: value of {type(v)}\n")                 
-                        
+                        print(f"DEBUG MODEL | batch[{k}]: value of {type(v)}\n")                 
+
                 outputs = model(**batch)
                 loss = outputs.loss
                         
