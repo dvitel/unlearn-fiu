@@ -590,6 +590,15 @@ class custom_data_collator(object):
         if 'category' in instances[0]:
             categories = [instance['category'][0] for instance in instances]
             batch['category'] = categories
+
+        # Debug prints inside Collator
+        print(f"DEBUG COLLATOR | Num Instances: {len(instances)}")
+        print(f"DEBUG COLLATOR | First instance pixel_values: {instances[0]['pixel_values'].shape}")
+
+        # ... after the stacking logic ...
+
+        print(f"DEBUG COLLATOR | Final Batch pixel_values: {batch['pixel_values'].shape}")
+        print(f"DEBUG COLLATOR | Final Batch image_sizes: {batch['image_sizes'].shape}")                
         
         return batch
 
