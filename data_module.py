@@ -175,7 +175,7 @@ class MMDatasetQA(Dataset):
                 batch_first=True,
                 padding_value=self.tokenizer.pad_token_id) 
             
-            print(f"Image size {image_sizes}", end="\r")
+            print(f"Image size {image_sizes}, {raw_image.size[1]}, {raw_image.size[0]} \n")
         
             attention_mask = torch.nn.utils.rnn.pad_sequence(
                     pad_attention_mask_list,
