@@ -141,7 +141,6 @@ class MMDatasetQA(Dataset):
         
         if "llava" in self.config.model_family:
             raw_image = Image.open(image_path)
-            image_sizes_list = []
             # image_tensor = self.image_processor.preprocess(, return_tensors='pt')['pixel_values']
             system_message = self.model_configs['system_tag']
             roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
@@ -165,15 +164,18 @@ class MMDatasetQA(Dataset):
             label_list.append(label[0])
             # pixel_value_list.append(image_tensor)
             pixel_value_list.append(inputs['pixel_values'][0])
+            # Manually ensure image_sizes exists
             if 'image_sizes' in inputs:
-                image_sizes_list.append(inputs['image_sizes'][0])   
+                image_sizes = inputs['image_sizes'][0]
+            else:
+                image_sizes = torch.tensor([raw_image.size[1], raw_image.size[0]], dtype=torch.long)                 
 
             input_ids = torch.nn.utils.rnn.pad_sequence(
                 pad_input_ids_list,
                 batch_first=True,
                 padding_value=self.tokenizer.pad_token_id) 
             
-            print(f"Image sized {image_sizes_list}")
+            print(f"Image size {image_sizes}", end="\r")
         
             attention_mask = torch.nn.utils.rnn.pad_sequence(
                     pad_attention_mask_list,
@@ -192,10 +194,9 @@ class MMDatasetQA(Dataset):
                 "attention_mask": attention_mask.squeeze(0), 
                 "labels": labels.squeeze(0), 
                 "pixel_values": pixel_values.squeeze(0),
+                "image_sizes": image_sizes,
                 "category": [category for _ in range(input_ids.shape[0])],
             }
-            if image_sizes_list:
-                ret["image_sizes"] = image_sizes_list        
             return ret
                                             
 
