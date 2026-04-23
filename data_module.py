@@ -155,6 +155,7 @@ class MMDatasetQA(Dataset):
                 return_tensors="pt"
             )
 
+            print(f"DEBUG INPUT | keys: {list(inputs.keys())}\n") 
             print(f"DEBUG INPUT | pixel_values: {inputs['pixel_values'].shape}\n") 
             print(f"DEBUG INPUT | input_ids: {inputs['input_ids'].shape}\n") 
             print(f"DEBUG INPUT | idx: {len(idx)}\n")
