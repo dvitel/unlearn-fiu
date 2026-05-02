@@ -140,55 +140,88 @@ class MMDatasetQA(Dataset):
 
         
         if "llava" in self.config.model_family:
-            raw_image = Image.open(image_path)
+            raw_image = Image.open(image_path).convert("RGB")
             # image_tensor = self.image_processor.preprocess(, return_tensors='pt')['pixel_values']
             system_message = self.model_configs['system_tag']
-            roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
-            conversation = system_message + roles[0] + "<image>\n" + question + roles[1] + ans
+            # roles = [self.model_configs['question_start_tag'], self.model_configs['answer_tag']]
+            # conversation = system_message + roles[0] + "<image>\n" + question + roles[1] + ans
+            
+            prompt_messages = [
+                {
+                    "role": "system",
+                    "content": [{"type": "text", "text": system_message }]
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image"},
+                        {"type": "text", "text": question}
+                    ]
+                }
+            ]
+            full_messages = [
+                *prompt_messages,
+                {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": ans}]
+                }
+            ]
 
-            inputs = self.processor(
-                text=conversation, 
-                images=raw_image, 
-                padding="max_length", 
-                max_length=self.max_length, 
-                truncation=True, 
-                return_tensors="pt"
-            )
+            # apply_chat_template handles the formatting for the specific model (Phi-3-Llava)
+            prompt_str = self.processor.apply_chat_template(prompt_messages, add_generation_prompt=True)
+            full_str = self.processor.apply_chat_template(full_messages, add_generation_prompt=False)
 
+            # We use the processor to get the full tensor sequence including image tokens
+            full_inputs = self.processor(text=full_str, images=raw_image, return_tensors="pt")            
+            
+            # To find the label mask, we tokenize the prompt specifically
+            prompt_input_ids = self.processor.tokenizer(prompt_str, add_special_tokens=False)["input_ids"]
+            
+            full_input_ids = full_inputs["input_ids"][0]
+            labels = full_input_ids.clone()
+
+            prompt_len = len(prompt_input_ids)
+            # Mask everything before the assistant starts with -100
+            labels[:prompt_len] = -100            
+
+            # DEBUG MESSAGES PRESERVED
             # print(f"DEBUG INPUT | keys: {list(inputs.keys())}\n") 
-            print(f"DEBUG INPUT | pixel_values: {inputs['pixel_values'].shape}\n") 
-            print(f"DEBUG INPUT | input_ids: {inputs['input_ids'].shape}\n") 
+            print(f"DEBUG INPUT | pixel_values: {full_inputs['pixel_values'].shape}\n") 
+            print(f"DEBUG INPUT | input_ids: {full_inputs['input_ids'].shape}\n") 
             # print(f"DEBUG INPUT | idx: {len(idx)}\n")
 
             # text_input = self.tokenizer(conversation, max_length=self.max_length, truncation=True, return_tensors="pt")
-            label = preprocess_v1(self.tokenizer, inputs['input_ids'], conversation, roles)
+            # label = preprocess_v1(self.tokenizer, inputs['input_ids'], conversation, roles)
 
-
-            pad_input_ids_list.append(inputs['input_ids'][0])
-            pad_attention_mask_list.append(inputs['attention_mask'][0])
-            label_list.append(label[0])
+            # Append results to your lists for batching/padding
+            pad_input_ids_list.append(full_inputs['input_ids'][0])
+            pad_attention_mask_list.append(full_inputs['attention_mask'][0])
+            label_list.append(labels)
+            
             # pixel_value_list.append(image_tensor)
             # pixel_value_list.append(inputs['pixel_values'][0])
-            # Manually ensure image_sizes exists
-            # if 'image_sizes' in inputs:
-            #     image_sizes = inputs['image_sizes'][0]
-            # else:
-            #     image_sizes = torch.tensor([raw_image.size[1], raw_image.size[0]], dtype=torch.long)   
-            image_sizes = torch.tensor([336, 336], dtype=torch.long)   # 1 patch - global one           
+            
+            # Manually ensure image_sizes exists (Phi-3-Llava uses this for variable resolution)
+            if 'image_sizes' in full_inputs:
+                image_sizes = full_inputs['image_sizes']
+            else:
+                image_sizes = torch.tensor([[raw_image.size[1], raw_image.size[0]]], dtype=torch.long)   
+            # image_sizes = torch.tensor([336, 336], dtype=torch.long)   # 1 patch - global one           
 
+            # Final Padding Logic
             input_ids = torch.nn.utils.rnn.pad_sequence(
                 pad_input_ids_list,
                 batch_first=True,
-                padding_value=self.tokenizer.pad_token_id) 
+                padding_value=self.processor.tokenizer.pad_token_id) 
             
             # print(f"Image size {image_sizes}, {raw_image.size[1]}, {raw_image.size[0]} \n")
         
             attention_mask = torch.nn.utils.rnn.pad_sequence(
                     pad_attention_mask_list,
                     batch_first=True,
-                    padding_value=self.tokenizer.pad_token_id)  
+                    padding_value=0) # Attention mask usually pads with 0 
 
-            labels = torch.nn.utils.rnn.pad_sequence(
+            labels_padded = torch.nn.utils.rnn.pad_sequence(
                     label_list,
                     batch_first=True,
                     padding_value=-100)   
@@ -198,18 +231,19 @@ class MMDatasetQA(Dataset):
             ret = {
                 "input_ids": input_ids.squeeze(0), 
                 "attention_mask": attention_mask.squeeze(0), 
-                "labels": labels.squeeze(0), 
-                "pixel_values": inputs['pixel_values'],
-                "image_sizes": image_sizes,
+                "labels": labels_padded.squeeze(0), 
+                "pixel_values": full_inputs['pixel_values'],
+                "image_sizes": image_sizes, # Added this back as it's required for LLaVA inference/training
                 "category": [category for _ in range(input_ids.shape[0])],
             }
 
+            # DEBUG MESSAGES PRESERVED
             print(f"DEBUG GETITEM | pixel_values: {ret['pixel_values'].shape}\n") 
             print(f"DEBUG GETITEM | input_ids: {ret['input_ids'].shape}\n") 
             print(f"DEBUG GETITEM | image_sizes: {ret['image_sizes'].shape}\n")            
+            
             return ret
                                             
-
         elif "instructblip" in self.config.model_family:
             pad_qformer_input_ids_list = []
             pad_qformer_attention_mask_list = []
@@ -537,90 +571,69 @@ class custom_data_collator(object):
 
     tokenizer: transformers.PreTrainedTokenizer
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
+@dataclass
+class custom_data_collator(object):
+    """Collate examples for supervised fine-tuning."""
+
+    tokenizer: transformers.PreTrainedTokenizer
+    
+    def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
         input_ids, labels = tuple([instance[key] for instance in instances] for key in ("input_ids", "labels"))
         
+        # 1. Standard Text Padding
         input_ids = torch.nn.utils.rnn.pad_sequence(
             input_ids,
             batch_first=True,
             padding_value=self.tokenizer.pad_token_id)
-        labels = torch.nn.utils.rnn.pad_sequence(labels,
-                                                 batch_first=True,
-                                                 padding_value=-100)
         
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels,
+            batch_first=True,
+            padding_value=-100)
+        
+        # Truncate to model max length
         input_ids = input_ids[:, :self.tokenizer.model_max_length]
         labels = labels[:, :self.tokenizer.model_max_length]
+        
         batch = dict(
             input_ids=input_ids,
             labels=labels,
             attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
         )
-        # --- NEW: Handle image_sizes for LLaVA-v1.6 ---
+
+        # 2. Handle image_sizes (Crucial for Phi-3 HD)
         if 'image_sizes' in instances[0]:
-            # Each instance['image_sizes'] is a tensor [2]
-            # We want batch['image_sizes'] to be [Batch, 2]
-            batch['image_sizes'] = torch.stack([instance['image_sizes'] for instance in instances])        
+            # The model expects [Batch, 2]. Ensure we don't have an extra [Batch, 1, 2]
+            img_sizes = [instance['image_sizes'] for instance in instances]
+            batch['image_sizes'] = torch.stack(img_sizes).squeeze(1) if img_sizes[0].dim() > 1 else torch.stack(img_sizes)
+
+        # 3. Handle Multimodal Tensors (pixel_values, etc.)
         for key in ['pixel_values', 'aspect_ratio_ids', 'aspect_ratio_mask']:
-            # if key in instances[0]:
-            #     values = [instance[key].squeeze(1) for instance in instances]
-            #     if all(x is not None and x.shape == values[0].shape for x in values):
-            #         batch[key] = torch.stack(values)
-            #     else:
-            #         batch[key] = values
-                
-            #     if key == 'pixel_values' and len(values[0].shape) > 4:
-            #         batch[key] = batch[key].squeeze(1).unsqueeze(0)
-            #     else:
-            #         batch[key] = batch[key].squeeze(1)
             if key in instances[0]:
-                # 1. Just collect the tensors as they are
                 values = [instance[key] for instance in instances]
                 
-                # 2. Stack them into a batch
+                # Check if we can stack (they must have the same number of patches)
                 if all(x is not None and x.shape == values[0].shape for x in values):
-                    batch[key] = torch.stack(values) 
+                    batch[key] = torch.stack(values)
+                    
+                    # Ensure 5D for pixel_values: [Batch, Num_Patches, C, H, W]
+                    if key == 'pixel_values':
+                        if batch[key].dim() == 4:
+                            batch[key] = batch[key].unsqueeze(1)
                 else:
-                    batch[key] = values  
+                    # If instances have different patch counts, we have a problem for batching
+                    # Usually, AutoProcessor handles this by padding patches, but if not:
+                    batch[key] = values 
 
-                # 3. Simple 5D enforcement for pixel_values
-                if key == 'pixel_values':
-                    # If it somehow ended up 4D [B, C, H, W], add the patch dim back
-                    if batch[key].dim() == 4:
-                        batch[key] = batch[key].unsqueeze(1)
-                    # If it's already 5D [B, 1, 3, 336, 336], do nothing!                              
-
-        if "cross_attention_mask" in instances[0]:
-            cross_attention_mask_list = [instance["cross_attention_mask"][0] for instance in instances]
-            cross_attention_mask = pad_sequence(
-                    cross_attention_mask_list, padding_side='right', padding_value=0
-                )
-            
-            batch['cross_attention_mask'] = cross_attention_mask
-                
-        if 'qformer_input_ids' in instances[0]:
-            qformer_input_ids = [instance['qformer_input_ids'] for instance in instances]
-            if all(x is not None and x.shape == qformer_input_ids[0].shape for x in qformer_input_ids):
-                batch['qformer_input_ids'] = torch.stack(qformer_input_ids)
-            else:
-                batch['qformer_input_ids'] = qformer_input_ids
-                
-            qformer_attention_mask = [instance['qformer_attention_mask'] for instance in instances]
-            if all(x is not None and x.shape == qformer_attention_mask[0].shape for x in qformer_attention_mask):
-                batch['qformer_attention_mask'] = torch.stack(qformer_attention_mask)
-            else:
-                batch['qformer_attention_mask'] = qformer_attention_mask
-        
+        # 4. Handle remaining keys (category, etc.)
         if 'category' in instances[0]:
-            categories = [instance['category'][0] for instance in instances]
-            batch['category'] = categories
+            batch['category'] = [instance['category'] for instance in instances]
 
-        # Debug prints inside Collator
-        print(f"DEBUG COLLATOR | Num Instances: {len(instances)}")
-        print(f"DEBUG COLLATOR | First instance pixel_values: {instances[0]['pixel_values'].shape}")
-
-        # ... after the stacking logic ...
-
-        print(f"DEBUG COLLATOR | Final Batch pixel_values: {batch['pixel_values'].shape}")
-        print(f"DEBUG COLLATOR | Final Batch image_sizes: {batch['image_sizes'].shape}")                
+        # Debug prints
+        # print(f"DEBUG COLLATOR | Final Batch input_ids: {batch['input_ids'].shape}")
+        # print(f"DEBUG COLLATOR | Final Batch pixel_values: {batch['pixel_values'].shape}")
+        # if 'image_sizes' in batch:
+        #     print(f"DEBUG COLLATOR | Final Batch image_sizes: {batch['image_sizes'].shape}")                
         
         return batch
 
