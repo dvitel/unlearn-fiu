@@ -187,6 +187,32 @@ def main(cfg):
         )
         processor = AutoProcessor.from_pretrained(cfg.model_id)
 
+        phi3_template = (
+            "{% for message in messages %}"
+            "{% if message['role'] == 'system' %}"
+            "<|system|>\n{{ message['content'][0]['text'] }}<|end|>\n"
+            "{% elif message['role'] == 'user' %}"
+            "<|user|>\n"
+            "{% for content in message['content'] %}"
+            "{% if content['type'] == 'image' %}"
+            "<|image|>\n"
+            "{% elif content['type'] == 'text' %}"
+            "{{ content['text'] }}"
+            "{% endif %}"
+            "{% endfor %}<|end|>\n"
+            "{% elif message['role'] == 'assistant' %}"
+            "<|assistant|>\n{{ message['content'][0]['text'] }}<|end|>\n"
+            "{% endif %}"
+            "{% endfor %}"
+            "{% if add_generation_prompt %}"
+            "<|assistant|>\n"
+            "{% endif %}"
+        )
+
+        # Assign it to the processor and tokenizer
+        processor.chat_template = phi3_template
+        processor.tokenizer.chat_template = phi3_template        
+
         # Required for recent Transformers versions to avoid image/text length mismatches
         if not hasattr(processor, "patch_size") or processor.patch_size is None:
             processor.patch_size = model.config.vision_config.patch_size
