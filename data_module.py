@@ -202,10 +202,10 @@ class MMDatasetQA(Dataset):
             # pixel_value_list.append(inputs['pixel_values'][0])
             
             # Manually ensure image_sizes exists (Phi-3-Llava uses this for variable resolution)
-            if 'image_sizes' in full_inputs:
-                image_sizes = full_inputs['image_sizes']
-            else:
-                image_sizes = torch.tensor([[raw_image.size[1], raw_image.size[0]]], dtype=torch.long)   
+            # if 'image_sizes' in full_inputs:
+            #     image_sizes = full_inputs['image_sizes']
+            # else:
+            #     image_sizes = torch.tensor([[raw_image.size[1], raw_image.size[0]]], dtype=torch.long)   
             # image_sizes = torch.tensor([336, 336], dtype=torch.long)   # 1 patch - global one           
 
             # Final Padding Logic
@@ -233,7 +233,7 @@ class MMDatasetQA(Dataset):
                 "attention_mask": attention_mask.squeeze(0), 
                 "labels": labels_padded.squeeze(0), 
                 "pixel_values": full_inputs['pixel_values'],
-                "image_sizes": image_sizes, # Added this back as it's required for LLaVA inference/training
+                # "image_sizes": image_sizes, # Added this back as it's required for LLaVA inference/training
                 "category": [category for _ in range(input_ids.shape[0])],
             }
 
