@@ -625,7 +625,7 @@ class custom_data_collator(object):
 
         # Debug prints
         # print(f"DEBUG COLLATOR | Final Batch input_ids: {batch['input_ids'].shape}")
-        # print(f"DEBUG COLLATOR | Final Batch pixel_values: {batch['pixel_values'].shape}")
+        print(f"DEBUG COLLATOR | Final Batch pixel_values: {batch['pixel_values'].shape}")
         # if 'image_sizes' in batch:
         #     print(f"DEBUG COLLATOR | Final Batch image_sizes: {batch['image_sizes'].shape}")                
         
