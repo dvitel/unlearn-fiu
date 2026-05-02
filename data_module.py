@@ -608,7 +608,7 @@ class custom_data_collator(object):
                 
                 # Check if we can stack (they must have the same number of patches)
                 if all(x is not None and x.shape == values[0].shape for x in values):
-                    batch[key] = torch.stack(values)
+                    batch[key] = torch.stack([x[0] for x in values])
                     
                     # Ensure 5D for pixel_values: [Batch, Num_Patches, C, H, W]
                     # if key == 'pixel_values':
