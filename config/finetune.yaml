@@ -1,5 +1,5 @@
-model_id: meta-llama/Llama-3.2-11B-Vision
-model_family: llama-3.2-vision
+model_id: xtuner/llava-phi-3-mini-hf
+model_family: llava-phi
 
 LoRA:
   r: 0
