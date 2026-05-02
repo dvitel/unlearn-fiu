@@ -213,11 +213,11 @@ def main(cfg):
         processor.chat_template = phi3_template
         processor.tokenizer.chat_template = phi3_template        
 
-        if hasattr(model.config, "vision_config"):
-            model.vision_model.patch_size = model.config.vision_config.patch_size
-        else:
-            # Fallback if config is nested differently
-            model.vision_model.patch_size = 14        
+        # if hasattr(model.config, "vision_config"):
+        #     model.vision_model.patch_size = model.config.vision_config.patch_size
+        # else:
+        #     # Fallback if config is nested differently
+        #     model.vision_model.patch_size = 14        
 
         # Required for recent Transformers versions to avoid image/text length mismatches
         if not hasattr(processor, "patch_size") or processor.patch_size is None:
