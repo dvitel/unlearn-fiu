@@ -570,12 +570,6 @@ class custom_data_collator(object):
     """Collate examples for supervised fine-tuning."""
 
     tokenizer: transformers.PreTrainedTokenizer
-    def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-@dataclass
-class custom_data_collator(object):
-    """Collate examples for supervised fine-tuning."""
-
-    tokenizer: transformers.PreTrainedTokenizer
     
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
         input_ids, labels = tuple([instance[key] for instance in instances] for key in ("input_ids", "labels"))
