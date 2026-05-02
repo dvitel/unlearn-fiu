@@ -19,7 +19,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 def load_model(args):
     if "llava" in args.model_name:
         tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-        model = LlavaForConditionalGeneration.from_pretrained(args.model_path, attn_implementation="flash_attention_2", torch_dtype=torch.float16)
+        model = LlavaForConditionalGeneration.from_pretrained(args.model_path, attn_implementation="sdpa", torch_dtype=torch.float16)
         image_processor = CLIPImageProcessor.from_pretrained(args.vision_tower)
         processor = None
         if args.ckpt_path is not None and args.use_lora:
