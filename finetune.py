@@ -215,10 +215,11 @@ def main(cfg):
 
         # Required for recent Transformers versions to avoid image/text length mismatches
         if not hasattr(processor, "patch_size") or processor.patch_size is None:
-            processor.patch_size = model.config.vision_config.patch_size
-            processor.vision_feature_select_strategy = model.config.vision_feature_select_strategy
-            # Phi-3 usually uses 0 additional tokens (no CLS), unlike CLIP-only models
-            processor.num_additional_image_tokens = 0 
+            # Check the vision config in the model itself
+            if hasattr(model.config, "vision_config"):
+                processor.patch_size = model.config.vision_config.patch_size
+            else:
+                processor.patch_size = 14 # Standard fallback for CLIP-ViT-L-14  
         # Extract sub-components for your Dataset class if it requires them
         image_processor = processor.image_processor
         tokenizer = processor.tokenizer
