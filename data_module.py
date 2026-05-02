@@ -611,9 +611,9 @@ class custom_data_collator(object):
                     batch[key] = torch.stack(values)
                     
                     # Ensure 5D for pixel_values: [Batch, Num_Patches, C, H, W]
-                    if key == 'pixel_values':
-                        if batch[key].dim() == 4:
-                            batch[key] = batch[key].unsqueeze(1)
+                    # if key == 'pixel_values':
+                    #     if batch[key].dim() == 4:
+                    #         batch[key] = batch[key].unsqueeze(1)
                 else:
                     # If instances have different patch counts, we have a problem for batching
                     # Usually, AutoProcessor handles this by padding patches, but if not:
